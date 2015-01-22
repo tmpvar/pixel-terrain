@@ -1,1 +1,5 @@
-{}
+{
+  "dependencies": {
+    "box-intersect": "^1.0.0"
+  }
+}
