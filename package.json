@@ -1,9 +1,10 @@
 {
-  "scripts" : {
-    "beefy" : "beefy pixel-terrain.js --live --open"
+  "scripts": {
+    "beefy": "beefy pixel-terrain.js --live --open"
   },
   "dependencies": {
     "box-intersect": "^1.0.0",
+    "browserify": "^8.1.1",
     "fc": "^1.4.3",
     "ndarray": "^1.0.16",
     "ndarray-fill": "^1.0.1",
