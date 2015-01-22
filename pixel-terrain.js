@@ -6,6 +6,7 @@ var isect = require('box-intersect');
 var util = require('util');
 var fc = require('fc');
 var sound = require('./sound');
+var lerp = require('lerp-array')
 
 var soundSources = [
   'sound/laser.mp3',
@@ -116,12 +117,12 @@ function loadTerrain(src, fn) {
 }
 
 var pixelDeath = [];
-
+var hotColor = [255,75,19]
 
 function setPixel(a, x, y) {
-  a.set(x, y, 0, 255);
-  a.set(x, y, 1, 75);
-  a.set(x, y, 2, 19);
+  a.set(x, y, 0, hotColor[0]);
+  a.set(x, y, 1, hotColor[1]);
+  a.set(x, y, 2, hotColor[2]);
 
   pixelDeath.push([x, y, Date.now()]);
 }
@@ -530,12 +531,27 @@ function frame() {
       var now = Date.now();
       var a = terrain.ndarray.transpose(1, 0, 2);
       pixelDeath = pixelDeath.filter(function(pixel) {
+      /*TMPVAR CODE  
         if (now - pixel[2] > 500) {
           a.set(pixel[0], pixel[1], 3, 0);
           return false;
         }
         return true;
-      })
+      */
+      //lerp nonesense
+        var dieTime=500
+        var normalized = (now - pixel[2])/dieTime
+        if(normalized>1){
+          //pixel[0]=x ; pixel[1]=y ; 3=alpha ; argument alpha value
+          a.set(pixel[0], pixel[1], 3, 0);
+          return false;
+        }
+        var coolingColor = lerp(hotColor,[44,255,255],normalized)
+        a.set(pixel[0], pixel[1], 0, coolingColor[0])
+        a.set(pixel[0], pixel[1], 1, coolingColor[1])
+        a.set(pixel[0], pixel[1], 2, coolingColor[2])
+        return true; 
+        })
     }
 
     if (grenades.length) {
@@ -631,3 +647,5 @@ document.addEventListener('keyup', function(ev) {
   keys[ev.keyCode] = false;
   ev.preventDefault();
 });
+
+
