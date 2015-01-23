@@ -149,11 +149,11 @@ function setHot(a, x, y, dx, dy) {
   }
 }
 
-function createBullet(x, y, vx) {
+function createBullet(x, y, vx, vy) {
   if (sounds) {
     sounds.laser.play();
   }
-
+  vy=vy||0
 
   var b = {
     start: Date.now(),
@@ -181,8 +181,9 @@ function createBullet(x, y, vx) {
           setHot(a, i, y, -1, 0);
           setHot(a, i, y, 0, 1);
           setHot(a, i, y, 0, -1);
+      
 
-
+ 
           b.dead = true;
           break;
         }
@@ -190,6 +191,7 @@ function createBullet(x, y, vx) {
 
       if (!b.dead) {
         x += vx;
+        y += vy;
       }
 
       this.box[0] = x-1;
@@ -468,7 +470,7 @@ var keys = {};
 var bullets = [];
 var grenades = [];
 var lastBullet = Date.now();
-var bulletsPerSecond = 5;
+var bulletsPerSecond = 100;
 function frame() {
   var now = Date.now();
 
@@ -491,7 +493,7 @@ function frame() {
   }
 
   if (keys[32]) {
-    if (now - lastBullet > 1000/bulletsPerSecond) {
+    if (now - lastBullet > 30/bulletsPerSecond) {
       lastBullet = now;
       bullets.push(createBullet(
         player.position[0],
@@ -539,7 +541,7 @@ function frame() {
         return true;
       */
       //lerp nonesense
-        var dieTime=500
+        var dieTime=50
         var normalized = (now - pixel[2])/dieTime
         if(normalized>1){
           //pixel[0]=x ; pixel[1]=y ; 3=alpha ; argument alpha value
