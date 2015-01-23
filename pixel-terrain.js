@@ -169,8 +169,11 @@ function createBullet(x, y, vx, vy) {
 
       var dir = vx > 0 ? 1 : -1;
 
-      var next = x+vx;
-      for (var i=x; i !== next; i+=dir) {
+      var nextX = x+vx;
+      for (var i=x; i !== nextX; i+=dir) {
+
+
+
         if (a.get(i, y, 3) && !isHot(a, i, y)) {
           setHot(a, i, y, 1, 1);
           setHot(a, i, y, 1, -1);
@@ -403,25 +406,25 @@ function createZombie(x, y, player, path) {
 
   var z = createPlayer(x, y, path);
   var update = z.update;
-  var nextGroan =  Math.random() * 100;
+  var nextGroan =  Math.random() * 1000;
   var groanIndex = Math.floor(Math.random() * groans.length)
   var start = Date.now();
   z.update = function zombieUpdate(terrain) {
     this.position[0] += (player.position[0] > this.position[0]) ? .25 : -.25;
     var distance = Math.abs(this.position[0] - player.position[0]);
-    var maxDistance = 50
+    var maxDistance = 20
 
     var dir = (this.position[0] - player.position[0]) / maxDistance;
 
     var now = Date.now();
-    if (now - start > nextGroan && distance < maxDistance && sounds[groans[groanIndex]]) {
+    if (Math.random()<0.2&&now - start > nextGroan && distance < maxDistance && sounds[groans[groanIndex]]) {
       // TODO: panning
       sounds[groans[groanIndex]].pan = dir;
       sounds[groans[groanIndex]].play();
       groanIndex = (groanIndex + 1)%groans.length;
 
       start = now;
-      nextGroan = 500 + Math.random() * 500;
+      nextGroan = 3000 + Math.random() * 500;
     }
 
     var starty = this.position[1];
@@ -442,7 +445,7 @@ function createZombie(x, y, player, path) {
 
     terrain.needsRebuild = true;
 
-    sounds['dieShort'].play();
+    Math.random()*2>1 ? sounds['dieShort'].play() : sounds['dieLong'].play();
 
     var half = terrain.canvas.width/2;
     var offset = this.position[0] > half ? 0 : half;
