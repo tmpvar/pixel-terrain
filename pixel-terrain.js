@@ -28,7 +28,7 @@ var soundSources = [
 ];
 
 var deadZombie = new Image();
-deadZombie.src = "./img/deadZombie.png";
+deadZombie.src = "./img/deadZombieLarge.png";
 
 var sounds = false;
 sound.load(soundSources);
@@ -432,6 +432,7 @@ function createZombie(x, y, player, path) {
       terrain.ctx.translate(0, -terrain.canvas.height);
 
       ctx.translate(0,  -((this.img.height/2)|0) + deadZombie.height);
+      ctx.scale(1, -1)
       ctx.drawImage(deadZombie, 0, 0);
     ctx.restore();
 
