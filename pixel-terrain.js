@@ -403,21 +403,25 @@ function createZombie(x, y, player, path) {
 
   var z = createPlayer(x, y, path);
   var update = z.update;
-  var nextGroan = 2000 + Math.random() * 10000;
-  var groanIndex = (Math.random() * groans.length)|0;
+  var nextGroan =  Math.random() * 100;
+  var groanIndex = Math.floor(Math.random() * groans.length)
   var start = Date.now();
   z.update = function zombieUpdate(terrain) {
     this.position[0] += (player.position[0] > this.position[0]) ? .25 : -.25;
+    var distance = Math.abs(this.position[0] - player.position[0]);
+    var maxDistance = 50
+
+    var dir = (this.position[0] - player.position[0]) / maxDistance;
 
     var now = Date.now();
-    if (now - start > nextGroan && sounds[groans[groanIndex]]) {
+    if (now - start > nextGroan && distance < maxDistance && sounds[groans[groanIndex]]) {
       // TODO: panning
-
+      sounds[groans[groanIndex]].pan = dir;
       sounds[groans[groanIndex]].play();
       groanIndex = (groanIndex + 1)%groans.length;
 
       start = now;
-      nextGroan = 2000 + Math.random() * 10000;
+      nextGroan = 500 + Math.random() * 500;
     }
 
     var starty = this.position[1];
