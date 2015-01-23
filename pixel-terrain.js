@@ -603,10 +603,20 @@ function frame() {
         } else {
           ctx.fillStyle = "white";
           var deathMessages = [
-            'have you always been an idiot or did you just die that way?'
-          ]
+            'have you always been an idiot or did you just die that way?',
+            'you can\'t win.',
+            'use your fingers!',
+            'are the controls hard or are you just an idiot',
+            'you know you can shoot, right?',
+            'grenades are for throwing...',
+            'don\'t eat the red mush',
+            'you\'re at the bottom the of the food chain, genius',
+            'doh!',
+            'herp derp',
+            'don\'t pet the zombies'
+          ];
 
-          var s = deathMessages[0];
+          var s = deathMessages[Math.floor(Math.random() * deathMessages.length)];
           var w = ctx.measureText(s).width
           ctx.fillText(s, ctx.canvas.width/2 - w/2, ctx.canvas.height/2);
         }
