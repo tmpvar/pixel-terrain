@@ -591,16 +591,22 @@ function frame() {
 
     if (terrain && (isect(zombieBoxes, [player.box]).length || player.position[1] < 0)) {
       ctx.stop();
-      var cycles = 50;
+      var cycles = 10;
       setTimeout(function death() {
         cycles--;
-        ctx.fillStyle = "rgba(255, 0, 0, .1)";
+        ctx.fillStyle = "rgba(255, 0, 0, .2)";
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         if (cycles > 0) {
           setTimeout(death, 128);
         } else {
           ctx.fillStyle = "white";
-          ctx.fillText("you died", ctx.canvas.width/2 - 30, ctx.canvas.height/2);
+          var deathMessages = [
+            'have you always been an idiot or did you just die that way?'
+          ]
+
+          var s = deathMessages[0];
+          var w = ctx.measureText(s).width
+          ctx.fillText(s, ctx.canvas.width/2 - w/2, ctx.canvas.height/2);
         }
       }, 128)
       return;
