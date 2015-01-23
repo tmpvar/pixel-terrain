@@ -6,7 +6,10 @@ var isect = require('box-intersect');
 var util = require('util');
 var fc = require('fc');
 var sound = require('./sound');
-var lerp = require('lerp-array')
+var lerp = require('lerp-array');
+var gamepad = require('gp-controls');
+var bresenham = require('./bresenham');
+var vec2 = require('gl-vec2');
 
 var soundSources = [
   'sound/laser.mp3',
@@ -167,30 +170,19 @@ function createBullet(x, y, vx, vy) {
         return;
       }
 
-      var dir = vx > 0 ? 1 : -1;
-
-      var nextX = x+vx;
-      for (var i=x; i !== nextX; i+=dir) {
-
-
-
-        if (a.get(i, y, 3) && !isHot(a, i, y)) {
-          setHot(a, i, y, 1, 1);
-          setHot(a, i, y, 1, -1);
-          setHot(a, i, y, -1, -1);
-          setHot(a, i, y, -1, 1);
-
-          setHot(a, i, y, 1, 0);
-          setHot(a, i, y, -1, 0);
-          setHot(a, i, y, 0, 1);
-          setHot(a, i, y, 0, -1);
-      
-
- 
+      bresenham(x|0, y|0, (x+vx)|0, (y+vy)|0, function(lx, ly) {
+        if (a.get(lx, ly, 3) && !isHot(a, lx, ly)) {
           b.dead = true;
-          break;
+          setHot(a, lx, ly,  1, -1);
+          setHot(a, lx, ly, -1, -1);
+          setHot(a, lx, ly, -1,  1);
+          setHot(a, lx, ly,  1,  0);
+          setHot(a, lx, ly, -1,  0);
+          setHot(a, lx, ly,  0,  1);
+          setHot(a, lx, ly,  0, -1);
+          return false;
         }
-      }
+      });
 
       if (!b.dead) {
         x += vx;
@@ -204,8 +196,12 @@ function createBullet(x, y, vx, vy) {
 
     },
     render : function renderBullet(ctx) {
+      var rads = Math.atan2(vy, vx);
+
       ctx.save();
         ctx.translate(x, y);
+        ctx.rotate(rads);
+
         ctx.fillStyle = "rgba(255, 205, 5, .5)";
         ctx.fillRect(-2,-1, 4, 1);
       ctx.restore();
@@ -350,7 +346,7 @@ function createGrenade(player, power) {
   return g;
 }
 
-function createPlayer(x, y, imagePath) {
+function createPlayer(x, y, imagePath, inputPoller) {
   var img = new Image();
   img.src = imagePath;
   img.onload = function playerLoaded() {};
@@ -360,8 +356,12 @@ function createPlayer(x, y, imagePath) {
     position : [x|0, y|0],
     box: [0, 0, 0, 0],
     jumping: 0,
-    direction: 1,
+    direction: [0, 0],
     update : function(terrain) {
+      if (inputPoller) {
+        inputPoller(this);
+      }
+
       var a = terrain.ndarray.transpose(1, 0, 2);
 
       var x = this.position[0];
@@ -401,7 +401,7 @@ function createPlayer(x, y, imagePath) {
 }
 
 // TODO: don't always target the player
-function createZombie(x, y, player, path) {
+function createZombie(x, y, players, path) {
   var groans = ['groanA', 'groanB', 'groanC', 'groanD'];
 
   var z = createPlayer(x, y, path);
@@ -410,23 +410,25 @@ function createZombie(x, y, player, path) {
   var groanIndex = Math.floor(Math.random() * groans.length)
   var start = Date.now();
   z.update = function zombieUpdate(terrain) {
-    this.position[0] += (player.position[0] > this.position[0]) ? .25 : -.25;
-    var distance = Math.abs(this.position[0] - player.position[0]);
-    var maxDistance = 20
 
-    var dir = (this.position[0] - player.position[0]) / maxDistance;
+    players.forEach(function(player) {
+      z.position[0] += (player.position[0] > z.position[0]) ? .25 : -.25;
+      var distance = Math.abs(z.position[0] - player.position[0]);
+      var maxDistance = 20
 
-    var now = Date.now();
-    if (Math.random()<0.2&&now - start > nextGroan && distance < maxDistance && sounds[groans[groanIndex]]) {
-      // TODO: panning
-      sounds[groans[groanIndex]].pan = dir;
-      sounds[groans[groanIndex]].play();
-      groanIndex = (groanIndex + 1)%groans.length;
+      var dir = (z.position[0] - player.position[0]) / maxDistance;
 
-      start = now;
-      nextGroan = 3000 + Math.random() * 500;
-    }
+      var now = Date.now();
+      if (now - start > nextGroan && distance < maxDistance && sounds[groans[groanIndex]]) {
+        // TODO: panning
+        sounds[groans[groanIndex]].pan = dir;
+        sounds[groans[groanIndex]].play();
+        groanIndex = (groanIndex + 1)%groans.length;
 
+        start = now;
+        nextGroan = 3000 + Math.random() * 500;
+      }
+    });
     var starty = this.position[1];
     update.call(this, terrain);
   };
@@ -463,13 +465,126 @@ var renderTerrain = loadTerrain('./img/groundE.png', function(terrain) {
 });
 
 var ctx = fc(frame, true);
-var player = createPlayer(100, 200, './img/captainMicroTrimmed.png');
+
+var pads = navigator.getGamepads();
+var players = [];
+var playerBoxes = [];
+if (pads.length) {
+  var bindings = {
+    '<axis-left-x>' : 'move',
+    '<axis-left-y>' : 'jetpack',
+    '<axis-right-x>' : 'shootX',
+    '<axis-right-y>' : 'shootY',
+    '<action 1>' : 'grenade',
+    '<action 2>' : '',
+    '<action 3>' : '',
+    '<action 4>' : '',
+    '<shoulder-top-left>' : '',
+    '<shoulder-top-right>' : '',
+    '<shoulder-bottom-left>' : 'grenade',
+    '<shoulder-bottom-right>' : '',
+    '<meta 1>' : '',
+    '<meta 2>' : '',
+    '<stick-button 1>' : '',
+    '<stick-button 2>' : '',
+    '<up>' : '',
+    '<down>' : '',
+    '<left>' : '',
+    '<right>' : ''
+  }
+
+  function createGamepadPoller(pad) {
+    var controller = gamepad(pad, bindings);
+    var lastBullet = 0;
+    return function(player) {
+      var now = Date.now();
+      controller.poll();
+
+      if (Math.abs(controller.inputs.move) > 0.1) {
+        var dir = controller.inputs.move > 0 ? 1 : -1;
+        player.position[0] += dir;
+      }
+
+      if (controller.inputs.jetpack < -0.1) {
+        player.position[1]+=2;
+      }
+
+      player.direction[0] = controller.inputs.shootX;
+      player.direction[1] = -controller.inputs.shootY;
+
+
+      vec2.normalize(player.direction, player.direction);
+
+      if (Math.abs(controller.inputs.shootX) > 0.1 || Math.abs(controller.inputs.shootY) > 0.1) {
+        if (now - lastBullet > 1000/bulletsPerSecond) {
+          lastBullet = now;
+
+          bullets.push(createBullet(
+            player.position[0],
+            player.position[1] + (player.img.height/2)|0,
+            player.direction[0] * 2,
+            player.direction[1] * 2
+          ));
+        }
+      }
+    }
+  }
+
+
+  for (var pad = 0; pad<pads.length; pad++) {
+    if (pads.item(pad)) {
+      var p = createPlayer(100, 200, './img/captainMicroTrimmed.png', createGamepadPoller(pad))
+      players.push(p);
+      playerBoxes.push(p.box);
+    }
+  }
+  console.log(players);
+}
+
+  var pollKeyboardMouse = (function() {
+    var lastBullet = 0;
+
+
+    return function pollKeyboardMouse(player) {
+      var now = Date.now();
+
+      // TODO: keyboard
+      if (keys[39]) {
+        player.position[0]++;
+        player.direction = 1;
+      }
+
+      if (keys[37]) {
+        player.position[0]--;
+        player.direction = -1;
+      }
+
+      if (keys[38]) {
+        player.position[1]+=2;
+      }
+
+      if (keys[32]) {
+        if (now - lastBullet > 30/bulletsPerSecond) {
+          lastBullet = now;
+          bullets.push(createBullet(
+            player.position[0],
+            player.position[1] + (player.img.height/2)|0,
+            player.direction * 2
+          ));
+        }
+      }
+    }
+  })();
+  var p = createPlayer(100, 200, './img/captainMicroTrimmed.png', pollKeyboardMouse)
+  players.push(p);
+  playerBoxes.push(p.box);
+
 
 var zombies = [];
-var zombieBoxes = []
+var zombieBoxes = [];
 var w = ctx.canvas.width;
 for (var i=0; i<100; i++) {
-  var zombie = createZombie(Math.random() * w, 100, player, './img/zombie.png');
+  var zombie = createZombie(Math.random() * w, 100, players, './img/zombie.png');
   zombies.push(zombie);
   zombieBoxes.push(zombie.box);
 }
@@ -478,38 +593,12 @@ var keys = {};
 var bullets = [];
 var grenades = [];
 var lastBullet = Date.now();
-var bulletsPerSecond = 100;
+var bulletsPerSecond = 30;
 function frame() {
   var now = Date.now();
 
-
-
   var h = ctx.canvas.height;
   var w = ctx.canvas.width;
-  if (keys[39]) {
-    player.position[0]++;
-    player.direction = 1;
-  }
-
-  if (keys[37]) {
-    player.position[0]--;
-    player.direction = -1;
-  }
-
-  if (keys[38]) {
-    player.position[1]+=2;
-  }
-
-  if (keys[32]) {
-    if (now - lastBullet > 30/bulletsPerSecond) {
-      lastBullet = now;
-      bullets.push(createBullet(
-        player.position[0],
-        player.position[1] + (player.img.height/2)|0,
-        player.direction * 2
-      ));
-    }
-  }
 
   ctx.clear();
 
@@ -517,14 +606,14 @@ function frame() {
   ctx.fillStyle = "red"
   ctx.fillText('k: '+ kills, 5, 15);
 
-  // ctx.fillStyle = "#fff";
-  // ctx.fillRect(0, 0, h, w);
   ctx.save();
     ctx.scale(1, -1);
     ctx.translate(0, -h);
     var terrain = renderTerrain(ctx);
     if (terrain) {
-      player.update(terrain);
+      players.forEach(function(player) {
+        player.update(terrain);
+      });
     }
 
     if (bullets.length) {
@@ -541,27 +630,21 @@ function frame() {
       var now = Date.now();
       var a = terrain.ndarray.transpose(1, 0, 2);
       pixelDeath = pixelDeath.filter(function(pixel) {
-      /*TMPVAR CODE  
-        if (now - pixel[2] > 500) {
-          a.set(pixel[0], pixel[1], 3, 0);
-          return false;
-        }
-        return true;
-      */
+
       //lerp nonesense
-        var dieTime=50
-        var normalized = (now - pixel[2])/dieTime
-        if(normalized>1){
-          //pixel[0]=x ; pixel[1]=y ; 3=alpha ; argument alpha value
-          a.set(pixel[0], pixel[1], 3, 0);
-          return false;
-        }
-        var coolingColor = lerp(hotColor,[44,255,255],normalized)
-        a.set(pixel[0], pixel[1], 0, coolingColor[0])
-        a.set(pixel[0], pixel[1], 1, coolingColor[1])
-        a.set(pixel[0], pixel[1], 2, coolingColor[2])
-        return true; 
-        })
+      var dieTime=50
+      var normalized = (now - pixel[2])/dieTime
+      if(normalized>1){
+        //pixel[0]=x ; pixel[1]=y ; 3=alpha ; argument alpha value
+        a.set(pixel[0], pixel[1], 3, 0);
+        return false;
+      }
+      var coolingColor = lerp(hotColor,[44,255,255],normalized)
+      a.set(pixel[0], pixel[1], 0, coolingColor[0])
+      a.set(pixel[0], pixel[1], 1, coolingColor[1])
+      a.set(pixel[0], pixel[1], 2, coolingColor[2])
+      return true;
+      })
     }
 
     if (grenades.length) {
@@ -573,7 +656,10 @@ function frame() {
         grenade.render(ctx);
       });
     }
-    player.render(ctx);
+
+    players.forEach(function(player) {
+      player.render(ctx);
+    });
 
 
     isect(zombieBoxes, grenades.map(function(nade) {
@@ -599,7 +685,8 @@ function frame() {
       z.render(ctx);
     })
 
-    if (terrain && (isect(zombieBoxes, [player.box]).length || player.position[1] < 0)) {
+    // TODO: handle the death of players when multiple are alive
+    if (false && terrain && (isect(zombieBoxes, playerBoxes).length || players[0].position[1] < 0)) {
       ctx.stop();
       var cycles = 10;
       setTimeout(function death() {
@@ -625,7 +712,7 @@ function frame() {
           ];
 
           var s = deathMessages[Math.floor(Math.random() * deathMessages.length)];
-          var w = ctx.measureText(s).width
+          var w = ctx.measureText(s).width;
           ctx.fillText(s, ctx.canvas.width/2 - w/2, ctx.canvas.height/2);
         }
       }, 128)
