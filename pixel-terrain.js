@@ -460,7 +460,7 @@ function createZombie(x, y, players, path) {
 }
 
 // TODO: resize
-var renderTerrain = loadTerrain('./img/groundE.png', function(terrain) {
+var renderTerrain = loadTerrain('./img/groundF.png', function(terrain) {
   terrain.update();
 });
 
