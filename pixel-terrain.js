@@ -426,7 +426,7 @@ function createZombie(x, y, players, path) {
         groanIndex = (groanIndex + 1)%groans.length;
 
         start = now;
-        nextGroan = 3000 + Math.random() * 500;
+        nextGroan = 3000 + Math.random() * 50000;
       }
     });
     var starty = this.position[1];
@@ -584,7 +584,7 @@ var zombies = [];
 var zombieBoxes = [];
 var w = ctx.canvas.width;
 for (var i=0; i<100; i++) {
-  var zombie = createZombie(Math.random() * w, 100, players, './img/zombie.png');
+  var zombie = createZombie(800 + Math.random() * w/4, 100, players, './img/zombie.png');
   zombies.push(zombie);
   zombieBoxes.push(zombie.box);
 }
@@ -632,7 +632,7 @@ function frame() {
       pixelDeath = pixelDeath.filter(function(pixel) {
 
       //lerp nonesense
-      var dieTime=50
+      var dieTime=10
       var normalized = (now - pixel[2])/dieTime
       if(normalized>1){
         //pixel[0]=x ; pixel[1]=y ; 3=alpha ; argument alpha value
